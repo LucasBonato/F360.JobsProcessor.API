@@ -1,14 +1,27 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Net;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using F360.JobsProcessor.API.Application;
+using F360.JobsProcessor.API.Domain.Contracts;
 using F360.JobsProcessor.API.Domain.Contracts.UseCases;
 using MassTransit;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
+using OpenTelemetry;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace F360.JobsProcessor.API.Infrastructure;
 
 public static class DependencyInjectionExtensions {
+
+	public static IServiceCollection AddRepositories(this IServiceCollection services) {
+		return services
+				.AddSingleton<IJobRepository, JobMongoRepository>()
+			;
+	}
 
 	public static IServiceCollection AddServices(this IServiceCollection services) {
 		return services
