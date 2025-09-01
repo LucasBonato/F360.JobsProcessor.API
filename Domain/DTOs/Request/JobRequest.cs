@@ -1,7 +1,9 @@
-﻿namespace F360.JobsProcessor.API.Domain.DTOs.Request;
+﻿using System.Text.Json.Serialization;
+
+namespace F360.JobsProcessor.API.Domain.DTOs.Request;
 
 public record JobRequest(
-	JobType Type,
+	[property: JsonConverter(typeof(JsonStringEnumConverter))] JobType Type,
 	string? Sender,
 	string? To,
 	string? Subject = null,

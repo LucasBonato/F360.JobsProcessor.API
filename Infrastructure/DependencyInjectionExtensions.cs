@@ -31,7 +31,7 @@ public static class DependencyInjectionExtensions {
 					options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 					options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
 					options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
+					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 				})
 				.AddProblemDetails(options =>
 					options.CustomizeProblemDetails = context => {
