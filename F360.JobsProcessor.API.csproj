@@ -17,10 +17,4 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.7.2" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Application\" />
-    <Folder Include="Domain\" />
-    <Folder Include="Presentation\" />
-  </ItemGroup>
-
 </Project>
