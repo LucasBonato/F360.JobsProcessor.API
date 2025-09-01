@@ -1,5 +1,6 @@
 using DotNetEnv;
 using F360.JobsProcessor.API;
+using F360.JobsProcessor.API.Infrastructure;
 using MassTransit;
 using MongoDB.Driver;
 using Scalar.AspNetCore;
@@ -10,7 +11,7 @@ Env.TraversePath().Load();
 
 builder.Services.AddOpenApi();
 
-builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(AppEnv.DATABASE.MONGO.CONNECTION_URI.NotNull()));
+builder.Services.AddMongoDb();
 
 builder.Services.AddMassTransit(configuration => {
     configuration.AddMongoDbOutbox(config => {
