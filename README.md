@@ -118,9 +118,25 @@ Content-Type: application/json
 * A consumer will pick up the job from RabbitMQ for processing.
 * Job status updates will be persisted in MongoDB (`Pending → Processing → Completed`).
 
+If you want to see all the endpoints access this route:
+> `http://localhost:5079/scalar`
+
 ---
 
-### Step 4: Monitoring
+### Step 4: Create a Job
+
+Send a GET request to the API endpoint:
+
+```http
+GET /api/jobs/{jobId}
+```
+
+If you want to see all the endpoints access this route:
+> `http://localhost:5079/scalar`
+
+---
+
+### Step 5: Monitoring
 
 * OpenTelemetry traces and logs are sent to the OTLP collector.
 * Retry and error messages can be seen in RabbitMQ’s `_error` queue.
@@ -135,7 +151,7 @@ Content-Type: application/json
 
 ---
 
-### Step 5: Stop services
+### Step 6: Stop services
 
 ```bash
 docker-compose down

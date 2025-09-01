@@ -4,5 +4,9 @@ public record JobRequest(
 	JobType Type,
 	string? Sender,
 	string? To,
-	string Content
+	string? Subject = null,
+	string? Content = null,
+	string? ReportName = null,
+	DateTime? ScheduledAt = null,
+	Dictionary<string, object>? Metadata = null
 );

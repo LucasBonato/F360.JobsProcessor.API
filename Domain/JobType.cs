@@ -3,4 +3,6 @@
 public enum JobType {
 	SendEmail,
 	GenerateReport,
+	DataExport,
+	Notification
 }
