@@ -6,10 +6,10 @@ using F360.JobsProcessor.API.Application;
 using F360.JobsProcessor.API.Domain.Contracts;
 using F360.JobsProcessor.API.Domain.Contracts.UseCases;
 using MassTransit;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -75,18 +75,17 @@ public static class DependencyInjectionExtensions {
 				tracing
 					.AddSource(serviceName)
 					.AddAspNetCoreInstrumentation()
-					.AddAWSInstrumentation()
 					.AddHttpClientInstrumentation()
 					;
 			})
 			;
 
-		services.AddLogging(options => {
-			options
-				.AddOpenTelemetry(logger => {
-					logger.IncludeScopes = true;
-					logger.ParseStateValues = true;
-					logger.IncludeFormattedMessage = true;
+		services.AddLogging(logger => {
+			logger
+				.AddOpenTelemetry(telemetryLoggerOptions => {
+					telemetryLoggerOptions.IncludeScopes = true;
+					telemetryLoggerOptions.ParseStateValues = true;
+					telemetryLoggerOptions.IncludeFormattedMessage = true;
 				})
 				;
 		});

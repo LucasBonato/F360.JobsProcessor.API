@@ -21,4 +21,5 @@ public static class AppEnv {
 	}
 
 	public static readonly AnvEnv OTEL_SERVICE_NAME = new("OTEL_SERVICE_NAME");
+	public static readonly AnvEnv OTEL_EXPORTER_OTLP_ENDPOINT = new("OTEL_EXPORTER_OTLP_ENDPOINT");
 }

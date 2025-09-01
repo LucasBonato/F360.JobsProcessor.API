@@ -7,6 +7,9 @@
       - .env
     ports:
       - "5079:8080"
+    depends_on:
+      - rabbit-mq
+      - mongodb
 
   rabbit-mq:
     image: rabbitmq:latest
@@ -29,6 +32,7 @@
     environment:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: examplepassword
+    restart: always
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
       interval: 30s
@@ -36,11 +40,25 @@
       retries: 5
     ports:
       - "27017:27017"
+    volumes:
+      - ./init_script.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  mongo-express:
+    image: mongo-express:latest
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: examplepassword
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    ports:
+      - "8887:8081"
 
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
     ports:
       - "4317:18889"
+      - "4318:18890"
       - "18888:18888"
 
 configs:
