@@ -33,7 +33,65 @@ public static class DependencyInjectionExtensions {
 					options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
 					options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
 				})
+				.AddProblemDetails(options =>
+					options.CustomizeProblemDetails = context => {
+						HttpContext httpContext = context.HttpContext;
+						string traceId = Activity.Current?.TraceId.ToString()?? httpContext.TraceIdentifier;
+						string traceParent = Activity.Current?.Id ?? httpContext.TraceIdentifier;
+						ILogger logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<Program>();
+						if (context.Exception is not null)
+							logger.LogError(context.Exception, "{httpContext}, {traceId}, {traceParent}", httpContext, traceId, traceParent);
+
+						if (string.IsNullOrEmpty(context.ProblemDetails.Type)) {
+							context.ProblemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
+						}
+
+						context.ProblemDetails.Instance = httpContext.Request.Path;
+						context.ProblemDetails.Extensions.TryAdd("method", httpContext.Request.Method);
+
+						if (context.ProblemDetails.Extensions.ContainsKey("traceId"))
+							context.ProblemDetails.Extensions["traceId"] = traceId;
+						else
+							context.ProblemDetails.Extensions.TryAdd("traceId", traceId);
+
+						httpContext.Response.StatusCode = context.ProblemDetails.Status?? (int)HttpStatusCode.InternalServerError;
+						httpContext.Response.Headers.TryAdd("traceparent", traceParent);
+					}
+				)
 			;
+	}
+
+	public static IServiceCollection AddOpenTelemetryConfiguration(this IServiceCollection services)
+	{
+		string serviceName = AppEnv.OTEL_SERVICE_NAME.NotNull();
+
+		services
+			.AddOpenTelemetry()
+			.UseOtlpExporter()
+			.ConfigureResource(resource => {
+				resource.AddService(serviceName: serviceName);
+			})
+			.WithTracing(tracing => {
+				tracing
+					.AddSource(serviceName)
+					.AddAspNetCoreInstrumentation()
+					.AddAWSInstrumentation()
+					.AddHttpClientInstrumentation()
+					;
+			})
+			;
+
+		services.AddLogging(options => {
+			options
+				.AddOpenTelemetry(logger => {
+					logger.IncludeScopes = true;
+					logger.ParseStateValues = true;
+					logger.IncludeFormattedMessage = true;
+				})
+				;
+		});
+
+		return services;
 	}
 
 	public static IServiceCollection AddMongoDbConfiguration(this IServiceCollection services) {
@@ -45,17 +103,6 @@ public static class DependencyInjectionExtensions {
 
 	public static IServiceCollection AddMassTransitConfiguration(this IServiceCollection services) {
 		return services.AddMassTransit(configuration => {
-			// configuration.AddMongoDbOutbox(config => {
-			// 	config.QueryDelay = TimeSpan.FromSeconds(1);
-			//
-			// 	config.ClientFactory(provider => provider.GetRequiredService<IMongoClient>());
-			// 	config.DatabaseFactory(provider => provider.GetRequiredService<IMongoDatabase>());
-			//
-			// 	config.DuplicateDetectionWindow = TimeSpan.FromSeconds(30);
-			//
-			// 	config.UseBusOutbox();
-			// });
-
 			configuration.SetKebabCaseEndpointNameFormatter();
 
 			configuration.AddConsumer<JobSubmittedConsumer>();
@@ -66,7 +113,14 @@ public static class DependencyInjectionExtensions {
 					host.Password(AppEnv.MESSAGE_BROKER.PASSWORD.NotNull());
 				});
 
-				configurator.ConfigureEndpoints(context);
+				configurator.UseMessageRetry(retry => retry.Interval(5, TimeSpan.FromSeconds(5)));
+
+				configurator.ReceiveEndpoint("job-submitted", endpoint => {
+					endpoint.ConfigureConsumer<JobSubmittedConsumer>(context);
+
+					endpoint.PrefetchCount = 10;
+					endpoint.ConcurrentMessageLimit = 5;
+				});
 			});
 
 		});

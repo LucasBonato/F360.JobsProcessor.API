@@ -7,6 +7,7 @@
       - .env
     ports:
       - "5079:8080"
+
   rabbit-mq:
     image: rabbitmq:latest
     restart: always
@@ -22,6 +23,7 @@
     volumes:
       - rabbitmq-lib:/var/lib/rabbitmq/
       - rabbitmq-log:/var/log/rabbitmq
+
   mongodb:
     image: mongo:latest
     environment:
@@ -34,16 +36,12 @@
       retries: 5
     ports:
       - "27017:27017"
-  mongo-express:
-    image: mongo-express:latest
-    depends_on:
-      - mongodb
-    environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: examplepassword
-      ME_CONFIG_MONGODB_SERVER: mongodb
+
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
     ports:
-      - "8887:8081"
+      - "4317:18889"
+      - "18888:18888"
 
 configs:
   rabbitmq-plugins:

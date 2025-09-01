@@ -1,5 +1,4 @@
 ﻿using F360.JobsProcessor.API.Domain;
-using F360.JobsProcessor.API.Domain.Contracts;
 using F360.JobsProcessor.API.Domain.Contracts.UseCases;
 using F360.JobsProcessor.API.Domain.DTOs.Request;
 using F360.JobsProcessor.API.Domain.DTOs.Response;

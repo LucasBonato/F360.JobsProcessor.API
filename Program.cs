@@ -10,8 +10,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddMongoDbConfiguration();
 builder.Services.AddMassTransitConfiguration();
+builder.Services.AddRepositories();
 builder.Services.AddServices();
-builder.Services.AddProblemDetails();
+builder.Services.AddOpenTelemetryConfiguration();
 
 WebApplication app = builder.Build();
 
