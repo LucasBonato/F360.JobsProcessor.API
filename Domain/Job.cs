@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using F360.JobsProcessor.API.Domain.DTOs.Request;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -9,15 +10,17 @@ public class Job {
 	[BsonId]
 	[BsonRepresentation(BsonType.String)]
 	public string Id { get; set; }
-	public JobStatus Status { get; set; } = JobStatus.Pending;
+	public JobStatus Status { get; private set; } = JobStatus.Pending;
 	public JobType Type { get; set; }
 	public string Payload { get; set; }
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime? StartedAt { get; set; }
 	public DateTime? FinishedAt { get; set; }
-	public int Attempts { get; set; } = 0;
+	public string? LastError {get; set;}
+	public int Attempts { get; private set; } = 0;
 	public int MaxAttempts { get; set; } = 5;
 
+	[JsonConstructor]
 	public Job() {}
 
 	public Job(JobRequest jobRequest) {
@@ -25,4 +28,24 @@ public class Job {
 		Type = jobRequest.Type;
 		Payload = JsonSerializer.Serialize(jobRequest);
 	}
+
+	public void SetStatus(JobStatus status) {
+		if (Status == status)
+			return;
+
+		if (Status == JobStatus.Pending && status == JobStatus.Completed)
+			throw new InvalidOperationException("Job status cannot be completed before Processing it.");
+
+		if (Status != JobStatus.Pending && status == JobStatus.Pending)
+			throw new InvalidOperationException("Job status cannot return to pending.");
+
+		Status = status;
+	}
+
+	public void IncreaseAttempt() {
+		if (Attempts < MaxAttempts)
+			Attempts++;
+	}
+
+	public bool IsProcessingOrCompleted() => Status is JobStatus.Completed or JobStatus.Processing;
 }

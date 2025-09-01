@@ -1,14 +1,13 @@
 ﻿using System.Text.Json;
 using F360.JobsProcessor.API.Domain;
-using F360.JobsProcessor.API.Infrastructure;
+using F360.JobsProcessor.API.Domain.Contracts;
 using MassTransit;
-using MongoDB.Driver;
 
 namespace F360.JobsProcessor.API.Application;
 
 public class JobSubmittedConsumer(
 	ILogger<JobSubmittedConsumer> logger,
-	IMongoDatabase database
+	IJobRepository jobRepository
 ) : IConsumer<Job> {
 	public async Task Consume(ConsumeContext<Job> context) {
 		logger.LogInformation("Received job submitted event: {payload}", JsonSerializer.Serialize(context.Message));
@@ -16,28 +15,38 @@ public class JobSubmittedConsumer(
 		if (context.Message.MaxAttempts == context.Message.Attempts)
 			return;
 
-		IMongoCollection<Job> jobsCollection = database.JobsCollection();
+		Job? job = await jobRepository.GetOneByIdAsync(context.Message.Id, context.CancellationToken);
 
-		await Task.Delay(10000);
+		if (job?.IsProcessingOrCompleted()?? true)
+			return;
 
-		FilterDefinition<Job>? filter = Builders<Job>.Filter.Eq(job => job.Id, context.Message.Id);
+		try {
+			context.Message.SetStatus(JobStatus.Processing);
+			context.Message.StartedAt = DateTime.UtcNow;
+			context.Message.IncreaseAttempt();
 
-		UpdateDefinition<Job>? update = Builders<Job>.Update
-			.Set(job => job.Status, JobStatus.Processing)
-			.Set(job => job.StartedAt, DateTime.UtcNow)
-			.Set(job => job.Attempts, context.Message.Attempts + 1);
+			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);
 
-		await jobsCollection.UpdateOneAsync(filter, update);
-		logger.LogInformation("Job updated: {status}", JobStatus.Processing);
+			logger.LogInformation("Job {jobId} updated: {status}", context.Message.Id, JobStatus.Processing);
 
-		await Task.Delay(5000);
+			Random random = new();
 
-		UpdateDefinition<Job>? updateToFinish = Builders<Job>.Update
-			.Set(job => job.Status, JobStatus.Completed)
-			.Set(job => job.FinishedAt, DateTime.UtcNow);
+			if (random.Next(0, 100) == 7)
+				throw new Exception("Random exception to simulate an failed job");
 
-		await jobsCollection.UpdateOneAsync(filter, updateToFinish);
-		logger.LogInformation("Job updated: {status}", JobStatus.Completed);
+			context.Message.SetStatus(JobStatus.Completed);
+			context.Message.FinishedAt = DateTime.UtcNow;
+
+			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);
+
+			logger.LogInformation("Job {jobId} updated: {status}", context.Message.Id, JobStatus.Completed);
+		}
+		catch(Exception e) {
+			context.Message.SetStatus(JobStatus.Failed);
+			context.Message.LastError = e.Message;
+			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);
+			throw;
+		}
 
 		await ValueTask.CompletedTask;
 	}
