@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -73,10 +74,21 @@ public static class DependencyInjectionExtensions {
 			})
 			.WithTracing(tracing => {
 				tracing
-					.AddSource(serviceName)
+					.AddSource(serviceName, DiagnosticHeaders.DefaultListenerName, "MongoDB.Driver.Core.Extensions.DiagnosticSources")
 					.AddAspNetCoreInstrumentation()
 					.AddHttpClientInstrumentation()
 					;
+			})
+			.WithMetrics(metrics => {
+				metrics
+					.AddMeter(serviceName, DiagnosticHeaders.DefaultListenerName, "MongoDB.Driver.Core.Extensions.DiagnosticSources")
+					.AddAspNetCoreInstrumentation()
+					.AddHttpClientInstrumentation()
+					.AddView(instrument =>
+						instrument.GetType().GetGenericTypeDefinition() == typeof(Histogram<>)
+							? new Base2ExponentialBucketHistogramConfiguration()
+							: null
+					);
 			})
 			;
 
