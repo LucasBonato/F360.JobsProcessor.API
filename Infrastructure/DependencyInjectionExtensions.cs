@@ -7,10 +7,14 @@ using F360.JobsProcessor.API.Application;
 using F360.JobsProcessor.API.Domain.Contracts;
 using F360.JobsProcessor.API.Domain.Contracts.UseCases;
 using MassTransit;
+using MassTransit.Logging;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Events;
+using MongoDB.Driver.Core.Extensions.DiagnosticSources;
 using OpenTelemetry;
-using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -107,8 +111,28 @@ public static class DependencyInjectionExtensions {
 
 	public static IServiceCollection AddMongoDbConfiguration(this IServiceCollection services) {
 		return services
-			.AddSingleton<IMongoClient>(_ => new MongoClient(AppEnv.DATABASE.MONGO.CONNECTION_URI.NotNull()))
-			.AddSingleton<IMongoDatabase>(provider => provider.GetRequiredService<IMongoClient>().GetDatabase(AppEnv.DATABASE.MONGO.DATABASE_NAME.NotNull()))
+				.AddSingleton<IMongoClient>(_ => {
+					string mongoConnectionUri = AppEnv.DATABASE.MONGO.CONNECTION_URI.NotNull();
+					MongoClientSettings clientSettings = MongoClientSettings.FromUrl(new MongoUrl(mongoConnectionUri));
+
+					ILogger<MongoClient> logger = services.BuildServiceProvider().GetRequiredService<ILogger<MongoClient>>();
+
+					clientSettings.ClusterConfigurator = builder => {
+						builder.Subscribe(new DiagnosticsActivityEventSubscriber());
+						builder.Subscribe<CommandStartedEvent>(startedEvent => {
+							logger.LogDebug("MongoDB Command Started: {CommandName} - {Command}", startedEvent.CommandName,  startedEvent.Command.ToJson());
+						});
+						builder.Subscribe<CommandSucceededEvent>(succeededEvent => {
+							logger.LogInformation("MongoDB Command Succeeded: {CommandName} - Duration: {Duration}", succeededEvent.CommandName, succeededEvent.Duration);
+						});
+						builder.Subscribe<CommandFailedEvent>(failedEvent => {
+							logger.LogError("MongoDB Command Failed: {CommandName} - Error: {Failure}", failedEvent.CommandName, failedEvent.Failure);
+						});
+					};
+
+					return new MongoClient(clientSettings);
+				})
+				.AddSingleton<IMongoDatabase>(provider => provider.GetRequiredService<IMongoClient>().GetDatabase(AppEnv.DATABASE.MONGO.DATABASE_NAME.NotNull()))
 			;
 	}
 
