@@ -17,6 +17,10 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.OpenTelemetry;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace F360.JobsProcessor.API.Infrastructure;
 
@@ -43,9 +47,9 @@ public static class DependencyInjectionExtensions {
 						HttpContext httpContext = context.HttpContext;
 						string traceId = Activity.Current?.TraceId.ToString()?? httpContext.TraceIdentifier;
 						string traceParent = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-						ILogger logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<Program>();
+						// ILogger logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<Program>();
 						if (context.Exception is not null)
-							logger.LogError(context.Exception, "{httpContext}, {traceId}, {traceParent}", httpContext, traceId, traceParent);
+							Logger.Error($"{httpContext}, {traceId}, {traceParent}");
 
 						if (string.IsNullOrEmpty(context.ProblemDetails.Type)) {
 							context.ProblemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
@@ -64,6 +68,22 @@ public static class DependencyInjectionExtensions {
 					}
 				)
 			;
+	}
+
+	public static IServiceCollection AddSerilog(this IServiceCollection services) {
+		Log.Logger = new LoggerConfiguration()
+			.MinimumLevel.Information()
+			.MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+			.Enrich.FromLogContext()
+			.WriteTo.OpenTelemetry(
+				endpoint: "http://localhost:4318",
+				protocol: OtlpProtocol.HttpProtobuf
+			)
+			.CreateLogger();
+
+		Log.Information("Starting Serilog...");
+
+		return services;
 	}
 
 	public static IServiceCollection AddOpenTelemetryConfiguration(this IServiceCollection services)
@@ -116,18 +136,18 @@ public static class DependencyInjectionExtensions {
 					string mongoConnectionUri = AppEnv.DATABASE.MONGO.CONNECTION_URI.NotNull();
 					MongoClientSettings clientSettings = MongoClientSettings.FromUrl(new MongoUrl(mongoConnectionUri));
 
-					ILogger<MongoClient> logger = services.BuildServiceProvider().GetRequiredService<ILogger<MongoClient>>();
+					// ILogger<MongoClient> logger = services.BuildServiceProvider().GetRequiredService<ILogger<MongoClient>>();
 
 					clientSettings.ClusterConfigurator = builder => {
 						builder.Subscribe(new DiagnosticsActivityEventSubscriber());
 						builder.Subscribe<CommandStartedEvent>(startedEvent => {
-							logger.LogInformation("MongoDB Command Started: {CommandName} - {Command}", startedEvent.CommandName,  startedEvent.Command.ToJson());
+							Logger.Info($"MongoDB Command Started: {startedEvent.CommandName} - {startedEvent.Command.ToJson()}");
 						});
 						builder.Subscribe<CommandSucceededEvent>(succeededEvent => {
-							logger.LogInformation("MongoDB Command Succeeded: {CommandName} - Duration: {Duration}", succeededEvent.CommandName, succeededEvent.Duration);
+							Logger.Info($"MongoDB Command Succeeded: {succeededEvent.CommandName} - Duration: {succeededEvent.Duration}");
 						});
 						builder.Subscribe<CommandFailedEvent>(failedEvent => {
-							logger.LogError("MongoDB Command Failed: {CommandName} - Error: {Failure}", failedEvent.CommandName, failedEvent.Failure);
+							Logger.Info($"MongoDB Command Failed: {failedEvent.CommandName} - Error: {failedEvent.Failure}");
 						});
 					};
 

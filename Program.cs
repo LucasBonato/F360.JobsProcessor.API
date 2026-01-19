@@ -15,6 +15,7 @@ builder.Services.AddMongoDbConfiguration();
 builder.Services.AddMassTransitConfiguration();
 builder.Services.AddRepositories();
 builder.Services.AddServices();
+builder.Services.AddSerilog();
 builder.Services.AddOpenTelemetryConfiguration();
 builder.Services.AddOpenApi();
 

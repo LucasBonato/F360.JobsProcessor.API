@@ -6,11 +6,11 @@ using MassTransit;
 namespace F360.JobsProcessor.API.Application;
 
 public class JobSubmittedConsumer(
-	ILogger<JobSubmittedConsumer> logger,
+	// ILogger<JobSubmittedConsumer> logger,
 	IJobRepository jobRepository
 ) : IConsumer<Job> {
 	public async Task Consume(ConsumeContext<Job> context) {
-		logger.LogInformation("Received job submitted event: {payload}", JsonSerializer.Serialize(context.Message));
+		Logger.Info($"Received job submitted event: {JsonSerializer.Serialize(context.Message)}");
 
 		if (context.Message.MaxAttempts == context.Message.Attempts)
 			return;
@@ -29,7 +29,7 @@ public class JobSubmittedConsumer(
 
 			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);
 
-			logger.LogInformation("Job {jobId} updated: {status}", context.Message.Id, JobStatus.Processing);
+			Logger.Info("Job {context.Message.Id} updated: {JobStatus.Processing}");
 
 			Random random = new();
 
@@ -43,10 +43,10 @@ public class JobSubmittedConsumer(
 
 			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);
 
-			logger.LogInformation("Job {jobId} updated: {status}", context.Message.Id, JobStatus.Completed);
+			Logger.Info($"Job {context.Message.Id} updated: {JobStatus.Completed}");
 		}
 		catch(Exception e) {
-			logger.LogError(e, "Job {jobId} error: {message}", context.Message.Id, e.Message);
+			Logger.Error($"Job {context.Message.Id} error: {e.Message}");
 			context.Message.SetStatus(JobStatus.Failed);
 			context.Message.LastError = e.Message;
 			await jobRepository.UpdateOneAsync(context.Message, context.CancellationToken);

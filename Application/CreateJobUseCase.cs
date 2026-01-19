@@ -8,15 +8,14 @@ namespace F360.JobsProcessor.API.Application;
 
 public class CreateJobUseCase(
 	IJobRepository jobRepository,
-	IPublishEndpoint publishEndpoint,
-	ILogger<CreateJobUseCase> logger
+	IPublishEndpoint publishEndpoint
 ) : ICreateJobUseCase {
 	public async Task<Job> ExecuteAsync(JobRequest request, CancellationToken cancellationToken) {
 		Job job = new(request);
 
 		await jobRepository.CreateOneAsync(job, cancellationToken);
 
-		logger.LogInformation("Job created: {jobId}", job.Id);
+		Logger.Info($"Job created: {job.Id}");
 
 		await publishEndpoint.Publish(job, cancellationToken);
 
