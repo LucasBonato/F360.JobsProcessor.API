@@ -102,6 +102,7 @@ public static class DependencyInjectionExtensions {
 					telemetryLoggerOptions.IncludeScopes = true;
 					telemetryLoggerOptions.ParseStateValues = true;
 					telemetryLoggerOptions.IncludeFormattedMessage = true;
+
 				})
 				;
 		});
@@ -120,7 +121,7 @@ public static class DependencyInjectionExtensions {
 					clientSettings.ClusterConfigurator = builder => {
 						builder.Subscribe(new DiagnosticsActivityEventSubscriber());
 						builder.Subscribe<CommandStartedEvent>(startedEvent => {
-							logger.LogDebug("MongoDB Command Started: {CommandName} - {Command}", startedEvent.CommandName,  startedEvent.Command.ToJson());
+							logger.LogInformation("MongoDB Command Started: {CommandName} - {Command}", startedEvent.CommandName,  startedEvent.Command.ToJson());
 						});
 						builder.Subscribe<CommandSucceededEvent>(succeededEvent => {
 							logger.LogInformation("MongoDB Command Succeeded: {CommandName} - Duration: {Duration}", succeededEvent.CommandName, succeededEvent.Duration);
